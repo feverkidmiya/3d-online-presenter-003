@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traditional Costumes 3D Restoration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Three.js r128 核心及组件 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+  <style>
+    :root {
+      --bg-paper: #F7F5F0;
+      --color-ink: #2C3E35;
+      --border-green: #334A3E;
+      --accent-red: #A34828;
+    }
+
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif !important;
+      background-color: var(--bg-paper) !important;
+      background-image: radial-gradient(#E5E0D5 0.75px, transparent 0.75px) !important;
+      background-size: 16px 16px !important;
+      color: var(--color-ink) !important;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 24px;
+      user-select: none;
+    }
+
+    /* 最外层双重中国风边框 */
+    .outer-chinese-frame {
+      border: 2px solid #334A3E !important;
+      position: relative;
+      background-color: #F7F5F0 !important;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    }
+
+    .outer-chinese-frame::after {
+      content: '';
+      position: absolute;
+      top: 6px; left: 6px; right: 6px; bottom: 6px;
+      border: 1px solid #334A3E !important;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* 局部卡片双重边框 */
+    .chinese-border-box {
+      border: 1.5px solid #334A3E !important;
+      position: relative;
+      background-color: #F7F5F0 !important;
+    }
+
+    .chinese-border-box::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px; right: 3px; bottom: 3px;
+      border: 1px solid #334A3E !important;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    /* 博物馆级控制面板样式 */
+    .inspector-panel {
+      background: #EFECE6;
+      border: 1px solid rgba(51, 74, 62, 0.2);
+      border-radius: 6px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      color: #2C3E35;
+      width: 100%;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .panel-header {
+      background: #E5E0D5;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(51, 74, 62, 0.1);
+      cursor: pointer;
+    }
+    .panel-folder-title {
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.3);
+      border-bottom: 1px solid rgba(51, 74, 62, 0.08);
+    }
+    .panel-folder-title:hover {
+      background: rgba(51, 74, 62, 0.05);
+    }
+    .panel-content {
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.6);
+      border-bottom: 1px solid rgba(51, 74, 62, 0.08);
+    }
+    .panel-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .panel-row:last-child {
+      margin-bottom: 0;
+    }
+    .panel-label {
+      color: #556B60;
+      font-size: 10px;
+    }
+    .preset-btn {
+      padding: 3px 8px;
+      background: white;
+      border: 1px solid rgba(51, 74, 62, 0.2);
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-btn:hover, .preset-btn.active {
+      background: #334A3E;
+      color: white;
+    }
+  </style>
+</head>
+<body class="selection:bg-[#334A3E] selection:text-white">
+
+  <!-- 最外层大双重边框容器 -->
+  <div class="outer-chinese-frame flex flex-col justify-between flex-1">
+
+    <!-- 顶部导航 -->
+    <header class="w-full flex flex-col md:flex-row justify-between items-center border-b border-[#334A3E]/20 pb-3 mb-4">
+      <div class="flex space-x-6 text-xs tracking-widest">
+        <a href="#" class="text-[#2C3E35] font-semibold border-b border-[#2C3E35] pb-0.5">Work 1</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 2</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 3</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 4</a>
+      </div>
+      <div class="text-[11px] tracking-[0.25em] uppercase text-[#2C3E35]/80 my-1 md:my-0">
+        TRADITIONAL COSTUMES 3D RESTORATION AND ONLINE PRESENTER
+      </div>
+      <div class="text-[11px] tracking-wider text-[#2C3E35]/60">CN / EN</div>
+    </header>
+
+    <!-- 主展示区 -->
+    <main class="w-full flex-1 flex flex-col justify-between py-2">
+      
+      <div class="text-center mb-2">
+        <p class="text-xs tracking-[0.25em] text-[#334A3E]/70">Night Banquet of Han Xizai</p>
+        <h1 class="text-2xl md:text-3xl font-bold tracking-[0.2em] text-[#2C3E35] mt-1">3D Costume Restoration</h1>
+      </div>
+
+      <!-- 三栏网格布局 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-4 relative">
+        
+        <!-- 左侧：对比卡片入口 -->
+        <div class="lg:col-span-3 flex flex-col items-center lg:items-start space-y-2">
+          <div id="btn-compare" class="bg-white/80 p-3 chinese-border-box flex space-x-3 cursor-pointer hover:bg-white transition shadow-sm">
+            <div class="w-20 h-28 bg-[#E5E0D5] flex items-center justify-center text-[11px] text-[#334A3E]">Artwork</div>
+            <div class="w-20 h-28 bg-[#D8D2C4] flex items-center justify-center text-[11px] text-[#334A3E]">3D Model</div>
+          </div>
+          <span class="text-xs tracking-widest text-[#334A3E] text-center w-full">Artwork & 3D Comparison</span>
+        </div>
+
+        <!-- 中间：3D 渲染主视窗 -->
+        <div id="viewport-container" class="lg:col-span-6 relative w-full h-[420px] md:h-[480px] flex items-center justify-center transition-colors duration-500">
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-[340px] h-[340px] rounded-full border border-[#334A3E]/15"></div>
+            <div class="absolute w-[260px] h-[260px] rounded-full border border-[#334A3E]/10"></div>
+          </div>
+          <div id="webgl-container" class="w-full h-full cursor-grab active:cursor-grabbing relative z-10"></div>
+          <div id="loading-tip" class="absolute inset-0 flex items-center justify-center bg-[#F7F5F0]/90 z-20 text-xs tracking-widest text-[#2C3E35]">
+            Loading 3D Model...
+          </div>
+          <div class="absolute bottom-2 inset-x-0 text-center text-[11px] text-[#334A3E]/60 tracking-widest z-20 pointer-events-none">
+            Single finger rotate · Pinch zoom
+          </div>
+        </div>
+
+        <!-- 右侧：环境光预设与光照控制面板 -->
+        <div class="lg:col-span-3 flex flex-col space-y-1">
+          <div class="text-center mb-1">
+            <p class="text-xs tracking-[0.25em] text-[#334A3E]/70">Lighting Controls</p>
+          </div>
+          
+          <div class="inspector-panel">
+            <!-- 顶部控制条 -->
+            <div class="panel-header" onclick="toggleMainPanel()">
+              <span id="main-arrow" class="text-[10px]">▶</span>
+              <span class="text-[10px] tracking-widest text-[#334A3E]/50 font-mono">Environment & Lighting</span>
+              <span class="text-[10px]">⚙️</span>
+            </div>
+
+            <!-- 下拉折叠菜单主体 -->
+            <div id="panel-body" style="display: none;">
+              
+              <!-- 1. Lighting Presets -->
+              <div>
+                <div class="panel-folder-title" onclick="toggleFolder('presets')">
+                  <span>1. Lighting Presets</span>
+                  <span id="arrow-presets" class="text-[9px]">▼</span>
+                </div>
+                <div id="folder-presets" class="panel-content">
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <button class="preset-btn active" onclick="setLightingPreset('studio', this)">Studio</button>
+                    <button class="preset-btn" onclick="setLightingPreset('city', this)">City</button>
+                    <button class="preset-btn" onclick="setLightingPreset('sunset', this)">Sunset</button>
+                    <button class="preset-btn" onclick="setLightingPreset('dawn', this)">Dawn</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Environment Blur & Light Controls -->
+              <div>
+                <div class="panel-folder-title" onclick="toggleFolder('blur')">
+                  <span>2. Environment & Blur</span>
+                  <span id="arrow-blur" class="text-[9px]">▼</span>
+                </div>
+                <div id="folder-blur" class="panel-content space-y-2">
+                  <div class="panel-row">
+                    <span class="panel-label">Light Intensity</span>
+                    <input type="range" id="intensity-slider" min="0.2" max="3.0" step="0.1" value="1.0" oninput="updateLightIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
+                  </div>
+                  <div class="panel-row">
+                    <span class="panel-label">Light Rotation</span>
+                    <input type="range" id="rotation-slider" min="0" max="360" step="1" value="35" oninput="updateLightRotation(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
+                  </div>
+                  <div class="panel-row">
+                    <span class="panel-label">Blur</span>
+                    <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0.2" oninput="updateEnvironmentBlur(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
+                  </div>
+                  <div class="panel-row">
+                    <span class="panel-label">Ambient Intensity</span>
+                    <input type="range" id="ambient-slider" min="0.2" max="3.0" step="0.1" value="1.5" oninput="updateAmbientIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
+                  </div>
+                  <div class="panel-row">
+                    <span class="panel-label">Directional Intensity</span>
+                    <input type="range" id="dir-slider" min="0" max="5.0" step="0.1" value="2.0" oninput="updateDirIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Environment Background -->
+              <div>
+                <div class="panel-folder-title" onclick="toggleFolder('env')">
+                  <span>3. Background</span>
+                  <span id="arrow-env" class="text-[9px]">▼</span>
+                </div>
+                <div id="folder-env" class="panel-content">
+                  <div class="panel-row">
+                    <span class="panel-label">Background Color</span>
+                    <input type="color" id="bg-color-picker" value="#f7f5f0" class="w-8 h-5 border-0 cursor-pointer bg-transparent">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 底部功能按钮栏 -->
+      <div class="pt-4 border-t border-[#334A3E]/20 flex flex-wrap justify-center items-center gap-4 md:gap-6 text-xs text-[#334A3E] mt-4">
+        <button id="btn-global" class="hover:text-[#A34828] transition py-1">Fullscreen</button>
+        <span class="text-[#334A3E]/30">|</span>
+        <button id="btn-detail-nav" class="hover:text-[#A34828] transition py-1">Details</button>
+        <span class="text-[#334A3E]/30">|</span>
+        <button id="btn-rotate" class="hover:text-[#A34828] transition py-1">Auto Rotate</button>
+        <span class="text-[#334A3E]/30">|</span>
+        <button id="btn-reset" class="hover:text-[#A34828] transition py-1">Reset View</button>
+      </div>
+
+      <div class="text-center text-[11px] text-[#334A3E]/70 tracking-[0.2em] mt-3">
+        Era ｜ Night Banquet of Han Xizai Costume Restoration ｜ 3D Designer Name
+      </div>
+
+    </main>
+
+    <!-- 底部版权 -->
+    <footer class="w-full flex justify-between items-center text-[10px] text-[#334A3E]/50 pt-4 border-t border-[#334A3E]/15 mt-4">
+      <div>Copyright © 2026 Traditional Costumes 3D Online Presenter, LLC.</div>
+      <div>Digital Heritage & Interactive Presentation</div>
+    </footer>
+
+  </div>
+
+  <!-- Three.js 与安全加载逻辑 -->
+  <script>
+    const container = document.getElementById('webgl-container');
+    const viewportContainer = document.getElementById('viewport-container');
+    const loadingTip = document.getElementById('loading-tip');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 3.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff4e6, 2.0);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    const modelWrapper = new THREE.Group();
+    scene.add(modelWrapper);
+
+    let initialCameraState = { pos: new THREE.Vector3(0, 0, 3.5), target: new THREE.Vector3(0, 0, 0) };
+    let modelRoot = null;
+    let isAutoRotate = false;
+    let meshesList = [];
+
+    const modelUrl = 'https://raw.githubusercontent.com/feverkidmiya/digital-heritage-assets/main/snuff_bottle_c._1780-1850_ce_1k.glb';
+
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      modelUrl, 
+      (gltf) => {
+        modelRoot = gltf.scene;
+
+        const box = new THREE.Box3().setFromObject(modelRoot);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        modelRoot.position.sub(center);
+        modelWrapper.add(modelRoot);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        let cameraDist = maxDim * 2.5;
+        
+        initialCameraState.pos.set(0, maxDim * 0.5, cameraDist);
+        initialCameraState.target.set(0, 0, 0);
+
+        camera.position.copy(initialCameraState.pos);
+        controls.target.copy(initialCameraState.target);
+        controls.minDistance = maxDim * 0.2;
+        controls.maxDistance = maxDim * 10;
+        controls.update();
+
+        // 绝对安全遍历缓存
+        modelRoot.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.side = THREE.DoubleSide;
+            child.material.transparent = false;
+            child.material.depthWrite = true;
+            meshesList.push(child);
+          }
+        });
+
+        // 加载成功淡出提示
+        loadingTip.style.opacity = '0';
+        setTimeout(() => { loadingTip.style.display = 'none'; }, 300);
+      }, 
+      (xhr) => {
+        if (xhr.total > 0) {
+          const p = Math.round((xhr.loaded / xhr.total) * 100);
+          loadingTip.innerText = `Loading... ${p}%`;
+        } else {
+          loadingTip.innerText = `Loading (${Math.round(xhr.loaded / 1024)} KB)`;
+        }
+      }, 
+      (err) => {
+        console.error('Model load error:', err);
+        loadingTip.innerText = 'Failed to load model, please refresh';
+        loadingTip.style.color = '#A34828';
+      }
+    );
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (isAutoRotate) {
+        modelWrapper.rotation.y += 0.008;
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // --- 面板展开与折叠控制 ---
+    let isMainOpen = false;
+    function toggleMainPanel() {
+      isMainOpen = !isMainOpen;
+      const body = document.getElementById('panel-body');
+      const arrow = document.getElementById('main-arrow');
+      body.style.display = isMainOpen ? 'block' : 'none';
+      arrow.innerText = isMainOpen ? '▼' : '▶';
+    }
+
+    function toggleFolder(id) {
+      const folder = document.getElementById('folder-' + id);
+      const arrow = document.getElementById('arrow-' + id);
+      if (folder.style.display === 'none') {
+        folder.style.display = 'block';
+        arrow.innerText = '▼';
+      } else {
+        folder.style.display = 'none';
+        arrow.innerText = '▶';
+      }
+    }
+
+    // --- 灯光 Preset 预设切换 ---
+    window.setLightingPreset = function(preset, btn) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      let targetAmb = 1.5;
+      let targetDir = 2.0;
+
+      if (preset === 'studio') {
+        ambientLight.color.setHex(0xffffff);
+        targetAmb = 1.5;
+        dirLight.color.setHex(0xfff4e6);
+        targetDir = 2.0;
+        dirLight.position.set(5, 10, 7);
+      } else if (preset === 'city') {
+        ambientLight.color.setHex(0xd0e0ff);
+        targetAmb = 1.8;
+        dirLight.color.setHex(0xe8f0ff);
+        targetDir = 2.5;
+        dirLight.position.set(-6, 8, 5);
+      } else if (preset === 'sunset') {
+        ambientLight.color.setHex(0xffdfc4);
+        targetAmb = 1.6;
+        dirLight.color.setHex(0xff7b42);
+        targetDir = 3.0;
+        dirLight.position.set(8, 4, 6);
+      } else if (preset === 'dawn') {
+        ambientLight.color.setHex(0xd4f0ff);
+        targetAmb = 1.4;
+        dirLight.color.setHex(0x99ddff);
+        targetDir = 1.8;
+        dirLight.position.set(2, 12, -5);
+      }
+
+      ambientLight.intensity = targetAmb;
+      dirLight.intensity = targetDir;
+      document.getElementById('ambient-slider').value = targetAmb;
+      document.getElementById('dir-slider').value = targetDir;
+      document.getElementById('rotation-slider').value = 35; // 重置时归位大致角度
+    };
+
+    // --- Light Intensity 独立全局曝光控制 ---
+    window.updateLightIntensity = function(val) {
+      renderer.toneMappingExposure = parseFloat(val);
+    };
+
+    // --- Light Rotation 环绕旋转控制 ---
+    window.updateLightRotation = function(val) {
+      const angle = (parseFloat(val) * Math.PI) / 180;
+      const radius = Math.hypot(5, 7); // 保持原有的水平视距半径
+      dirLight.position.x = Math.sin(angle) * radius;
+      dirLight.position.z = Math.cos(angle) * radius;
+      // 高度保持相对稳定 (例如 y = 10)
+    };
+
+    // --- 独立 Ambient Intensity 控制 ---
+    window.updateAmbientIntensity = function(val) {
+      ambientLight.intensity = parseFloat(val);
+    };
+
+    // --- 独立 Directional Intensity 控制 ---
+    window.updateDirIntensity = function(val) {
+      dirLight.intensity = parseFloat(val);
+    };
+
+    // --- 环境光模糊度模拟调节 ---
+    window.updateEnvironmentBlur = function(val) {
+      const blurFactor = parseFloat(val);
+      meshesList.forEach(mesh => {
+        if (mesh.material && 'roughness' in mesh.material) {
+          mesh.material.roughness = THREE.MathUtils.lerp(0.2, 0.9, blurFactor);
+          mesh.material.needsUpdate = true;
+        }
+      });
+    };
+
+    // 背景颜色联动
+    const bgColorPicker = document.getElementById('bg-color-picker');
+    bgColorPicker.addEventListener('input', (e) => {
+      viewportContainer.style.backgroundColor = e.target.value;
+    });
+
+    // 旋转与重置控制
+    const btnRotate = document.getElementById('btn-rotate');
+    btnRotate.onclick = () => {
+      isAutoRotate = !isAutoRotate;
+      btnRotate.style.color = isAutoRotate ? '#A34828' : '#2C3E35';
+    };
+
+    document.getElementById('btn-reset').onclick = () => {
+      isAutoRotate = false;
+      btnRotate.style.color = '#2C3E35';
+      if (modelWrapper) {
+        modelWrapper.rotation.set(0, 0, 0);
+      }
+      camera.position.copy(initialCameraState.pos);
+      controls.target.copy(initialCameraState.target);
+      controls.update();
+    };
+
+    document.getElementById('btn-global').onclick = () => {
+      if (!document.fullscreenElement) viewportContainer.requestFullscreen();
+      else document.exitFullscreen();
+    };
+  </script>
+</body>
+</html>
