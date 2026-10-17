@@ -5,11 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Traditional Costumes 3D Restoration</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Croissant+One&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
   <!-- 引入 Three.js r128 核心及组件 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
+  
   <style>
     :root {
       --bg-paper: #F7F5F0;
@@ -19,7 +24,7 @@
     }
 
     body {
-      font-family: ui-sans-serif, system-ui, sans-serif !important;
+      font-family: 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif !important;
       background-color: var(--bg-paper) !important;
       background-image: radial-gradient(#E5E0D5 0.75px, transparent 0.75px) !important;
       background-size: 16px 16px !important;
@@ -27,281 +32,594 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      padding: 16px 24px;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+      margin: 0;
+      box-sizing: border-box;
       user-select: none;
     }
 
-    /* 最外层双重中国风边框 */
+    /* 全局固定非响应式大框：锁定绝对像素尺寸 */
     .outer-chinese-frame {
-      border: 2px solid #334A3E !important;
       position: relative;
-      background-color: #F7F5F0 !important;
-      max-width: 1400px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 24px;
+      width: 1210px;
+      height: 900px;
+      margin: 20px auto;
+      padding: 36px 48px;
       box-sizing: border-box;
+      background-color: #F7F5F0;
+      border: 1.5px solid #334A3E;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      flex-shrink: 0;
     }
 
     .outer-chinese-frame::after {
       content: '';
       position: absolute;
       top: 6px; left: 6px; right: 6px; bottom: 6px;
-      border: 1px solid #334A3E !important;
+      border: 1px solid rgba(51, 74, 62, 0.35);
       pointer-events: none;
-      opacity: 0.5;
     }
 
-    /* 局部卡片双重边框 */
-    .chinese-border-box {
-      border: 1.5px solid #334A3E !important;
-      position: relative;
-      background-color: #F7F5F0 !important;
-    }
-
-    .chinese-border-box::after {
-      content: '';
+    /* 顶部与底部回纹边框 */
+    .chinese-border-top-img, .chinese-border-bottom-img {
       position: absolute;
-      top: 3px; left: 3px; right: 3px; bottom: 3px;
-      border: 1px solid #334A3E !important;
+      left: -1px;
+      right: -1px;
+      height: 24px;
+      display: flex;
+      align-items: center;
       pointer-events: none;
-      opacity: 0.4;
+      z-index: 40;
+    }
+    .chinese-border-top-img { top: -12px; }
+    .chinese-border-bottom-img { bottom: -12px; transform: scaleY(-1); }
+
+    /* 三栏式核心居中舞台区域 */
+    .center-stage-container {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* 博物馆级控制面板样式 */
-    .inspector-panel {
-      background: #EFECE6;
-      border: 1px solid rgba(51, 74, 62, 0.2);
-      border-radius: 6px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-      font-family: ui-sans-serif, system-ui, sans-serif;
-      font-size: 11px;
-      color: #2C3E35;
+    /* 中间 3D 渲染主视窗 */
+    #viewport-container {
+      position: relative;
+      width: 420px;
+      height: 420px;
+      z-index: 10;
+    }
+
+    /* 标题文字定位在 3D 视窗正上方 5px 处 */
+    .title-above-model {
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 25;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .font-delicate-english {
+      font-family: 'Croissant One', cursive, serif;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      font-size: 10.5px;
+      white-space: nowrap;
+    }
+
+    .main-title-书法 {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: 26px;
+      letter-spacing: 0.12em;
+    }
+
+    .tip-below-model {
+      bottom: 10px;
+    }
+
+    .panel-noto-sans {
+      font-family: 'Noto Sans', sans-serif !important;
+    }
+
+    /* 左侧卷轴专属固定尺寸容器 */
+    .scroll-component-box {
+      position: absolute;
+      right: calc(100% + 50px);
+      top: 35px;
+      width: calc(924px * 1.5 / 4);
+      height: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      z-index: 20;
+    }
+
+    #scroll-closed {
+      position: absolute;
+      left: 0;
+      top: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      z-index: 10;
+      width: calc(157px * 1.5 / 4);
+      height: calc(815px * 1.5 / 4);
+    }
+
+    #scroll-opened {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: calc(924px * 1.5 / 4);
+      height: calc(805px * 1.5 / 4);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      display: none;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 16px 20px 12px 24px;
+      box-sizing: border-box;
+      z-index: 20;
+    }
+
+    /* 右侧控制面板容器 */
+    .right-panel-box {
+      position: absolute;
+      left: calc(100% + 50px);
+      top: 30px;
+      width: calc(618px * 1.8 / 4);
+      height: 0;
+      z-index: 20;
+    }
+
+    #light-ctrl-closed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: calc(618px * 1.8 / 4);
+      height: calc(204px * 1.8 / 4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #light-ctrl-closed img {
       width: 100%;
-      overflow: hidden;
-      transition: all 0.3s ease;
+      height: 100%;
+      object-fit: contain;
     }
-    .panel-header {
-      background: #E5E0D5;
-      padding: 6px 10px;
+    .lighting-text-overlay {
+      position: absolute;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(51, 74, 62, 0.1);
-      cursor: pointer;
-    }
-    .panel-folder-title {
-      padding: 6px 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
+      padding: 0 20px;
+      font-size: 13px;
       font-weight: 500;
-      background: rgba(255, 255, 255, 0.3);
-      border-bottom: 1px solid rgba(51, 74, 62, 0.08);
+      color: #2C3E35;
+      letter-spacing: 0.05em;
+      pointer-events: none;
+      transform: translate(-1px, -27px);
     }
-    .panel-folder-title:hover {
-      background: rgba(51, 74, 62, 0.05);
+
+    /* ==========================================================
+       【右侧灯光面板展开状态 (lgtCtrls_open) 及其内部独立定位样式】
+       ========================================================== */
+    #light-ctrl-opened {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: calc(618px * 1.8 / 4);
+      height: calc(809px * 1.8 / 4);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      display: none;
+      box-sizing: border-box;
+      z-index: 25;
     }
-    .panel-content {
-      padding: 8px 10px;
-      background: rgba(255, 255, 255, 0.6);
-      border-bottom: 1px solid rgba(51, 74, 62, 0.08);
-    }
-    .panel-row {
+
+    /* 1. Lighting Presets 顶部标题栏位置 */
+    .panel-title-area {
+      position: absolute;
+      top: 18px;
+      left: 20px;
+      right: 20px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(51, 74, 62, 0.15);
+      transform: translate(-1px, -10px);
     }
-    .panel-row:last-child {
-      margin-bottom: 0;
+    .panel-title-text {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: #2C3E35;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .panel-label {
-      color: #556B60;
-      font-size: 10px;
+    .panel-close-btn {
+      font-size: 14px;
+      color: #334A3E;
+      cursor: pointer;
+      font-weight: bold;
+      padding: 0 4px;
+      transition: opacity 0.2s;
+    }
+    .panel-close-btn:hover { opacity: 0.7; }
+
+    /* 2. 预设按钮容器 (Studio / City / Sunset / Dawn) 位置 */
+    .presets-buttons-container {
+      position: absolute;
+      top: 62px;
+      left: 20px;
+      right: 20px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      transform: translate(5px, 4px);
     }
     .preset-btn {
-      padding: 3px 8px;
-      background: white;
-      border: 1px solid rgba(51, 74, 62, 0.2);
-      border-radius: 4px;
+      padding: 3px 4px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(51, 74, 62, 0.25);
+      border-radius: 3px;
       font-size: 10px;
+      text-align: center;
       cursor: pointer;
       transition: all 0.2s;
     }
     .preset-btn:hover, .preset-btn.active {
       background: #334A3E;
       color: white;
+      border-color: #334A3E;
     }
+
+    /* 3. 五组参数调节滑动条整体包裹容器位置 */
+    .sliders-group-container {
+      position: absolute;
+      top: 110px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .slider-row-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #2C3E35;
+    }
+    .slider-label-text {
+      color: #556B60;
+    }
+    .slider-control-wrap {
+      display: flex;
+      align-items: center;
+    }
+    .slider-val-num {
+      width: 28px;
+      text-align: right;
+      font-size: 10px;
+      color: rgba(51, 74, 62, 0.7);
+      font-family: monospace;
+      margin-left: 6px;
+    }
+
+    /* 自定义美化滑动条本身 */
+    input[type="range"] {
+      -webkit-appearance: none;
+      background: #D8D2C4;
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+      width: 75px;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #334A3E;
+      cursor: pointer;
+    }
+
+    /* 4. 底部重置文字模块 (Reset) - 白色字样 */
+    .panel-reset-area {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(51, 74, 62, 0.1);
+      text-align: center;
+    }
+    #panel-reset-btn {
+      width: 100%;
+      padding-top: 3px;
+      padding-bottom: 3px;
+      background: transparent;
+      border: none;
+      font-size: 11px;
+      font-weight: 500;
+      color: #FFFFFF;          /* Reset 文字颜色为白色 */
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #panel-reset-btn:hover {
+      color: #FFD700;          
+      text-decoration: underline;
+    }
+    /* ========================================================== */
   </style>
 </head>
 <body class="selection:bg-[#334A3E] selection:text-white">
 
-  <!-- 最外层大双重边框容器 -->
-  <div class="outer-chinese-frame flex flex-col justify-between flex-1">
+  <!-- 最外层固定像素非响应式边框容器 -->
+  <div class="outer-chinese-frame">
+    
+    <!-- 顶部回纹边框 -->
+    <div class="chinese-border-top-img">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-left.png" alt="frame left" class="h-full object-contain flex-shrink-0">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-middle.png" alt="frame middle" class="h-full flex-1 object-fill">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-right.png" alt="frame right" class="h-full object-contain flex-shrink-0">
+    </div>
 
-    <!-- 顶部导航 -->
-    <header class="w-full flex flex-col md:flex-row justify-between items-center border-b border-[#334A3E]/20 pb-3 mb-4">
-      <div class="flex space-x-6 text-xs tracking-widest">
-        <a href="#" class="text-[#2C3E35] font-semibold border-b border-[#2C3E35] pb-0.5">Work 1</a>
-        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 2</a>
-        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 3</a>
-        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">Work 4</a>
+    <!-- 顶部导航服装切换 -->
+    <header class="w-full flex justify-center items-center pb-2">
+      <div class="flex space-x-10 text-xs tracking-wider text-[#2C3E35] font-medium">
+        <a href="#" class="font-semibold text-[#2C3E35] border-b-2 border-[#2C3E35] pb-0.5">夜宴仕女服</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">观舞仕女服</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">合乐官人服</a>
+        <a href="#" class="text-[#2C3E35]/60 hover:text-[#2C3E35] transition">五代南唐仕女服</a>
       </div>
-      <div class="text-[11px] tracking-[0.25em] uppercase text-[#2C3E35]/80 my-1 md:my-0">
-        TRADITIONAL COSTUMES 3D RESTORATION AND ONLINE PRESENTER
-      </div>
-      <div class="text-[11px] tracking-wider text-[#2C3E35]/60">CN / EN</div>
     </header>
 
-    <!-- 主展示区 -->
-    <main class="w-full flex-1 flex flex-col justify-between py-2">
-      
-      <div class="text-center mb-2">
-        <p class="text-xs tracking-[0.25em] text-[#334A3E]/70">Night Banquet of Han Xizai</p>
-        <h1 class="text-2xl md:text-3xl font-bold tracking-[0.2em] text-[#2C3E35] mt-1">3D Costume Restoration</h1>
-      </div>
+    <!-- 主展示区舞台 -->
+    <main class="w-full flex-1 flex flex-col justify-between py-1">
 
-      <!-- 三栏网格布局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-4 relative">
+      <!-- 核心中心对齐舞台 -->
+      <div class="center-stage-container">
         
-        <!-- 左侧：对比卡片入口 -->
-        <div class="lg:col-span-3 flex flex-col items-center lg:items-start space-y-2">
-          <div id="btn-compare" class="bg-white/80 p-3 chinese-border-box flex space-x-3 cursor-pointer hover:bg-white transition shadow-sm">
-            <div class="w-20 h-28 bg-[#E5E0D5] flex items-center justify-center text-[11px] text-[#334A3E]">Artwork</div>
-            <div class="w-20 h-28 bg-[#D8D2C4] flex items-center justify-center text-[11px] text-[#334A3E]">3D Model</div>
+        <!-- 中间 3D 渲染主视窗 -->
+        <div id="viewport-container" class="relative flex items-center justify-center transition-colors duration-500 bg-transparent">
+          
+          <!-- 主标题区域 -->
+          <div class="title-above-model">
+            <p class="font-delicate-english text-[#334A3E]/85 uppercase">Traditional Costumes 3D Restoration and Online Presenter</p>
+            <h1 class="main-title-书法 text-[#2C3E35] mt-1">韩熙载夜宴图仕女服装复原</h1>
           </div>
-          <span class="text-xs tracking-widest text-[#334A3E] text-center w-full">Artwork & 3D Comparison</span>
-        </div>
 
-        <!-- 中间：3D 渲染主视窗 -->
-        <div id="viewport-container" class="lg:col-span-6 relative w-full h-[420px] md:h-[480px] flex items-center justify-center transition-colors duration-500">
           <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="w-[340px] h-[340px] rounded-full border border-[#334A3E]/15"></div>
-            <div class="absolute w-[260px] h-[260px] rounded-full border border-[#334A3E]/10"></div>
+            <div class="w-[320px] h-[320px] rounded-full border border-[#334A3E]/15"></div>
+            <div class="absolute w-[240px] h-[240px] rounded-full border border-[#334A3E]/10"></div>
           </div>
           <div id="webgl-container" class="w-full h-full cursor-grab active:cursor-grabbing relative z-10"></div>
           <div id="loading-tip" class="absolute inset-0 flex items-center justify-center bg-[#F7F5F0]/90 z-20 text-xs tracking-widest text-[#2C3E35]">
             Loading 3D Model...
           </div>
-          <div class="absolute bottom-2 inset-x-0 text-center text-[11px] text-[#334A3E]/60 tracking-widest z-20 pointer-events-none">
-            Single finger rotate · Pinch zoom
-          </div>
-        </div>
-
-        <!-- 右侧：环境光预设与光照控制面板 -->
-        <div class="lg:col-span-3 flex flex-col space-y-1">
-          <div class="text-center mb-1">
-            <p class="text-xs tracking-[0.25em] text-[#334A3E]/70">Lighting Controls</p>
-          </div>
           
-          <div class="inspector-panel">
-            <!-- 顶部控制条 -->
-            <div class="panel-header" onclick="toggleMainPanel()">
-              <span id="main-arrow" class="text-[10px]">▶</span>
-              <span class="text-[10px] tracking-widest text-[#334A3E]/50 font-mono">Environment & Lighting</span>
-              <span class="text-[10px]">⚙️</span>
+          <!-- 下方提示文字 -->
+          <div class="absolute tip-below-model inset-x-0 text-center text-[11px] text-[#334A3E]/60 tracking-wider z-20 pointer-events-none">
+            单指旋转 · 双指缩放
+          </div>
+
+          <!-- 左侧：画卷对比模块 -->
+          <div class="scroll-component-box">
+            <div id="scroll-closed" onclick="toggleScroll()">
+              <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/scroll-bg_close.png" alt="Closed Scroll" class="w-full h-full object-contain filter drop-shadow-[2px_4px_8px_rgba(0,0,0,0.08)]">
             </div>
 
-            <!-- 下拉折叠菜单主体 -->
-            <div id="panel-body" style="display: none;">
-              
-              <!-- 1. Lighting Presets -->
-              <div>
-                <div class="panel-folder-title" onclick="toggleFolder('presets')">
-                  <span>1. Lighting Presets</span>
-                  <span id="arrow-presets" class="text-[9px]">▼</span>
-                </div>
-                <div id="folder-presets" class="panel-content">
-                  <div class="grid grid-cols-2 gap-1.5">
-                    <button class="preset-btn active" onclick="setLightingPreset('studio', this)">Studio</button>
-                    <button class="preset-btn" onclick="setLightingPreset('city', this)">City</button>
-                    <button class="preset-btn" onclick="setLightingPreset('sunset', this)">Sunset</button>
-                    <button class="preset-btn" onclick="setLightingPreset('dawn', this)">Dawn</button>
-                  </div>
-                </div>
+            <div id="scroll-opened" style="background-image: url('https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/scroll-bg_open.png');">
+              <div onclick="toggleScroll()" class="absolute cursor-pointer flex items-center justify-center z-30 transition hover:opacity-80" style="width: 17px; height: 17px; top: 13%; right: 15%;" title="收起卷轴">
+                <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/btn_close.png" alt="Close" class="w-full h-full object-contain">
               </div>
 
-              <!-- 2. Environment Blur & Light Controls -->
-              <div>
-                <div class="panel-folder-title" onclick="toggleFolder('blur')">
-                  <span>2. Environment & Blur</span>
-                  <span id="arrow-blur" class="text-[9px]">▼</span>
+              <div class="relative z-10 mt-1" style="width: calc((317px * 1.5 / 4) * 2 + 12px);">
+                <div class="flex space-x-3 w-full">
+                  <div class="bg-[#E5E0D5] border border-[#334A3E]/30 overflow-hidden shadow-sm flex items-center justify-center flex-shrink-0" style="width: calc(317px * 1.5 / 4); height: calc(433px * 1.5 / 4);">
+                    <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/compare-artwork.png" alt="Artwork" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/72x105?text=Artwork'">
+                  </div>
+                  <div class="bg-[#D8D2C4] border border-[#334A3E]/30 overflow-hidden shadow-sm flex items-center justify-center flex-shrink-0" style="width: calc(317px * 1.5 / 4); height: calc(433px * 1.5 / 4);">
+                    <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/compare-model.png" alt="3D Model" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/72x105?text=Model'">
+                  </div>
                 </div>
-                <div id="folder-blur" class="panel-content space-y-2">
-                  <div class="panel-row">
-                    <span class="panel-label">Light Intensity</span>
-                    <input type="range" id="intensity-slider" min="0.2" max="3.0" step="0.1" value="1.0" oninput="updateLightIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
-                  </div>
-                  <div class="panel-row">
-                    <span class="panel-label">Light Rotation</span>
-                    <input type="range" id="rotation-slider" min="0" max="360" step="1" value="35" oninput="updateLightRotation(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
-                  </div>
-                  <div class="panel-row">
-                    <span class="panel-label">Blur</span>
-                    <input type="range" id="blur-slider" min="0" max="1" step="0.05" value="0.2" oninput="updateEnvironmentBlur(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
-                  </div>
-                  <div class="panel-row">
-                    <span class="panel-label">Ambient Intensity</span>
-                    <input type="range" id="ambient-slider" min="0.2" max="3.0" step="0.1" value="1.5" oninput="updateAmbientIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
-                  </div>
-                  <div class="panel-row">
-                    <span class="panel-label">Directional Intensity</span>
-                    <input type="range" id="dir-slider" min="0" max="5.0" step="0.1" value="2.0" oninput="updateDirIntensity(this.value)" class="w-24 accent-[#334A3E] cursor-pointer">
-                  </div>
+
+                <div class="w-full flex justify-center mt-3.5">
+                  <button onclick="toggleScroll()" class="text-[13px] tracking-wider text-[#2C3E35] hover:text-[#A34828] transition font-medium text-center whitespace-nowrap">
+                    〈 原画和复原图比较 〉
+                  </button>
                 </div>
               </div>
-
-              <!-- 3. Environment Background -->
-              <div>
-                <div class="panel-folder-title" onclick="toggleFolder('env')">
-                  <span>3. Background</span>
-                  <span id="arrow-env" class="text-[9px]">▼</span>
-                </div>
-                <div id="folder-env" class="panel-content">
-                  <div class="panel-row">
-                    <span class="panel-label">Background Color</span>
-                    <input type="color" id="bg-color-picker" value="#f7f5f0" class="w-8 h-5 border-0 cursor-pointer bg-transparent">
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
+
+          <!-- 右侧：灯光控制设计面板 -->
+          <div class="right-panel-box panel-noto-sans">
+            
+            <!-- 闭合状态/主按钮 -->
+            <div id="light-ctrl-closed" onclick="toggleLightPanel()">
+              <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/lgtCtrls_close.png" alt="Lighting Controls Closed">
+              <div class="lighting-text-overlay">
+                <span class="flex items-center gap-2"><span>☀️</span> Lighting Controls</span>
+                <span class="font-bold pr-1">&gt;</span>
+              </div>
+            </div>
+
+            <!-- 展开状态 -->
+            <div id="light-ctrl-opened" style="background-image: url('https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/lgtCtrls_open.png');">
+              
+              <!-- 1. 顶部标题栏模块：Lighting Presets -->
+              <div class="panel-title-area">
+                <span class="panel-title-text">
+                  <span>☀️</span> Lighting Presets
+                </span>
+                <button onclick="toggleLightPanel()" class="panel-close-btn" title="收起面板">✕</button>
+              </div>
+
+              <!-- 2. 预设按钮模块：Studio / City / Sunset / Dawn -->
+              <div class="presets-buttons-container">
+                <button class="preset-btn active" onclick="setLightingPreset('studio', this)">Studio</button>
+                <button class="preset-btn" onclick="setLightingPreset('city', this)">City</button>
+                <button class="preset-btn" onclick="setLightingPreset('sunset', this)">Sunset</button>
+                <button class="preset-btn" onclick="setLightingPreset('dawn', this)">Dawn</button>
+              </div>
+
+              <!-- 3. 五组参数调节滑动条模块 -->
+              <div class="sliders-group-container">
+                
+                <!-- 参数 1：Light Intensity -->
+                <div class="slider-row-item">
+                  <span class="slider-label-text">Light Intensity</span>
+                  <div class="slider-control-wrap">
+                    <input id="slider-intensity" type="range" min="0.2" max="3.0" step="0.1" value="1.0" oninput="updateLightIntensity(this.value)">
+                    <span class="slider-val-num" id="val-intensity">33%</span>
+                  </div>
+                </div>
+
+                <!-- 参数 2：Light Rotation -->
+                <div class="slider-row-item">
+                  <span class="slider-label-text">Light Rotation</span>
+                  <div class="slider-control-wrap">
+                    <input id="slider-rotation" type="range" min="0" max="360" step="1" value="45" oninput="updateLightRotation(this.value)">
+                    <span class="slider-val-num" id="val-rotation">45°</span>
+                  </div>
+                </div>
+
+                <!-- 参数 3：Blur -->
+                <div class="slider-row-item">
+                  <span class="slider-label-text">Blur</span>
+                  <div class="slider-control-wrap">
+                    <input id="slider-blur" type="range" min="0" max="1" step="0.05" value="0.12" oninput="updateEnvironmentBlur(this.value)">
+                    <span class="slider-val-num" id="val-blur">12%</span>
+                  </div>
+                </div>
+
+                <!-- 参数 4：Ambient Intensity -->
+                <div class="slider-row-item">
+                  <span class="slider-label-text">Ambient Intensity</span>
+                  <div class="slider-control-wrap">
+                    <input id="slider-ambient" type="range" min="0.2" max="3.0" step="0.1" value="1.5" oninput="updateAmbientIntensity(this.value)">
+                    <span class="slider-val-num" id="val-ambient">50%</span>
+                  </div>
+                </div>
+
+                <!-- 参数 5：Directional Intensity -->
+                <div class="slider-row-item">
+                  <span class="slider-label-text">Directional Intensity</span>
+                  <div class="slider-control-wrap">
+                    <input id="slider-dir" type="range" min="0" max="5.0" step="0.1" value="2.0" oninput="updateDirIntensity(this.value)">
+                    <span class="slider-val-num" id="val-dir">40%</span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- 4. 底部重置文字模块 (Reset) - 白色字样 -->
+              <div class="panel-reset-area">
+                <button id="panel-reset-btn">Reset</button>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
 
       </div>
 
       <!-- 底部功能按钮栏 -->
-      <div class="pt-4 border-t border-[#334A3E]/20 flex flex-wrap justify-center items-center gap-4 md:gap-6 text-xs text-[#334A3E] mt-4">
-        <button id="btn-global" class="hover:text-[#A34828] transition py-1">Fullscreen</button>
-        <span class="text-[#334A3E]/30">|</span>
-        <button id="btn-detail-nav" class="hover:text-[#A34828] transition py-1">Details</button>
-        <span class="text-[#334A3E]/30">|</span>
-        <button id="btn-rotate" class="hover:text-[#A34828] transition py-1">Auto Rotate</button>
-        <span class="text-[#334A3E]/30">|</span>
-        <button id="btn-reset" class="hover:text-[#A34828] transition py-1">Reset View</button>
+      <div class="absolute inset-x-0 flex flex-wrap justify-center items-center gap-x-12 gap-y-2 text-xs text-[#334A3E] font-medium z-20 pointer-events-auto" style="bottom: 180px;">
+        <button id="btn-footer-compare" onclick="toggleScroll()" class="hover:text-[#A34828] transition py-1">〈 原画和复原图比较 〉</button>
+        <button id="btn-global" class="hover:text-[#A34828] transition py-1">〈 全局欣赏 〉</button>
+        <button id="btn-detail-nav" class="hover:text-[#A34828] transition py-1">〈 细节导览 〉</button>
+        <button id="btn-rotate" class="hover:text-[#A34828] transition py-1">〈 缓缓转动 〉</button>
+        <button id="btn-reset" class="hover:text-[#A34828] transition py-1">〈 回到初见 〉</button>
       </div>
 
-      <div class="text-center text-[11px] text-[#334A3E]/70 tracking-[0.2em] mt-3">
-        Era ｜ Night Banquet of Han Xizai Costume Restoration ｜ 3D Designer Name
+      <!-- 底部说明与版权文字 -->
+      <div class="absolute inset-x-0 text-center text-[11px] text-[#334A3E]/80 tracking-[0.15em] z-20 pointer-events-none" style="bottom: 154px;">
+        朝代 ｜ 原作名称和原作者 ｜ 3D复原设计师名称
       </div>
 
     </main>
 
+    <!-- 底部回纹边框 -->
+    <div class="chinese-border-bottom-img">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-left.png" alt="frame left" class="h-full object-contain flex-shrink-0">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-middle.png" alt="frame middle" class="h-full flex-1 object-fill">
+      <img src="https://raw.githubusercontent.com/feverkidmiya/3d-online-presenter-003/main/assets/images/frame-right.png" alt="frame right" class="h-full object-contain flex-shrink-0">
+    </div>
+
     <!-- 底部版权 -->
-    <footer class="w-full flex justify-between items-center text-[10px] text-[#334A3E]/50 pt-4 border-t border-[#334A3E]/15 mt-4">
+    <footer class="w-full flex justify-between items-center text-[10px] text-[#334A3E]/60 pt-2 border-t border-[#334A3E]/15 mt-1 panel-noto-sans">
+      <div>文物数字复原·交互赏鉴</div>
       <div>Copyright © 2026 Traditional Costumes 3D Online Presenter, LLC.</div>
-      <div>Digital Heritage & Interactive Presentation</div>
     </footer>
 
   </div>
 
-  <!-- Three.js 与安全加载逻辑 -->
+  <!-- 交互脚本与 Three.js 逻辑 -->
   <script>
+    // --- 1. 左侧卷轴收起/展开切换逻辑 ---
+    let isScrollOpen = false;
+    function toggleScroll() {
+      isScrollOpen = !isScrollOpen;
+      const closedView = document.getElementById('scroll-closed');
+      const openedView = document.getElementById('scroll-opened');
+      const footerCompareBtn = document.getElementById('btn-footer-compare');
+
+      if (isScrollOpen) {
+        closedView.style.display = 'none';
+        openedView.style.display = 'flex';
+        footerCompareBtn.style.color = '#A34828';
+        footerCompareBtn.style.fontWeight = 'bold';
+      } else {
+        closedView.style.display = 'flex';
+        openedView.style.display = 'none';
+        footerCompareBtn.style.color = '#2C3E35';
+        footerCompareBtn.style.fontWeight = 'normal';
+      }
+    }
+
+    // --- 2. 右侧灯光面板切换逻辑 ---
+    let isLightPanelOpen = false;
+    function toggleLightPanel() {
+      isLightPanelOpen = !isLightPanelOpen;
+      const closedEl = document.getElementById('light-ctrl-closed');
+      const openedEl = document.getElementById('light-ctrl-opened');
+
+      if (isLightPanelOpen) {
+        closedEl.style.display = 'none';
+        openedEl.style.display = 'flex';
+      } else {
+        closedEl.style.display = 'flex';
+        openedEl.style.display = 'none';
+      }
+    }
+
+    // --- 3. Three.js 3D 渲染视窗逻辑 ---
     const container = document.getElementById('webgl-container');
     const viewportContainer = document.getElementById('viewport-container');
     const loadingTip = document.getElementById('loading-tip');
@@ -344,7 +662,6 @@
       modelUrl, 
       (gltf) => {
         modelRoot = gltf.scene;
-
         const box = new THREE.Box3().setFromObject(modelRoot);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
@@ -364,7 +681,6 @@
         controls.maxDistance = maxDim * 10;
         controls.update();
 
-        // 绝对安全遍历缓存
         modelRoot.traverse((child) => {
           if (child.isMesh && child.material) {
             child.material.side = THREE.DoubleSide;
@@ -374,7 +690,6 @@
           }
         });
 
-        // 加载成功淡出提示
         loadingTip.style.opacity = '0';
         setTimeout(() => { loadingTip.style.display = 'none'; }, 300);
       }, 
@@ -382,13 +697,11 @@
         if (xhr.total > 0) {
           const p = Math.round((xhr.loaded / xhr.total) * 100);
           loadingTip.innerText = `Loading... ${p}%`;
-        } else {
-          loadingTip.innerText = `Loading (${Math.round(xhr.loaded / 1024)} KB)`;
         }
       }, 
       (err) => {
         console.error('Model load error:', err);
-        loadingTip.innerText = 'Failed to load model, please refresh';
+        loadingTip.innerText = 'Failed to load model';
         loadingTip.style.color = '#A34828';
       }
     );
@@ -409,29 +722,7 @@
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // --- 面板展开与折叠控制 ---
-    let isMainOpen = false;
-    function toggleMainPanel() {
-      isMainOpen = !isMainOpen;
-      const body = document.getElementById('panel-body');
-      const arrow = document.getElementById('main-arrow');
-      body.style.display = isMainOpen ? 'block' : 'none';
-      arrow.innerText = isMainOpen ? '▼' : '▶';
-    }
-
-    function toggleFolder(id) {
-      const folder = document.getElementById('folder-' + id);
-      const arrow = document.getElementById('arrow-' + id);
-      if (folder.style.display === 'none') {
-        folder.style.display = 'block';
-        arrow.innerText = '▼';
-      } else {
-        folder.style.display = 'none';
-        arrow.innerText = '▶';
-      }
-    }
-
-    // --- 灯光 Preset 预设切换 ---
+    // 灯光预设切换逻辑
     window.setLightingPreset = function(preset, btn) {
       document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -467,37 +758,28 @@
 
       ambientLight.intensity = targetAmb;
       dirLight.intensity = targetDir;
-      document.getElementById('ambient-slider').value = targetAmb;
-      document.getElementById('dir-slider').value = targetDir;
-      document.getElementById('rotation-slider').value = 35; // 重置时归位大致角度
     };
 
-    // --- Light Intensity 独立全局曝光控制 ---
-    window.updateLightIntensity = function(val) {
-      renderer.toneMappingExposure = parseFloat(val);
+    window.updateLightIntensity = (val) => { 
+      renderer.toneMappingExposure = parseFloat(val); 
+      document.getElementById('val-intensity').innerText = Math.round((val / 3.0) * 100) + '%';
     };
-
-    // --- Light Rotation 环绕旋转控制 ---
-    window.updateLightRotation = function(val) {
+    window.updateLightRotation = (val) => {
       const angle = (parseFloat(val) * Math.PI) / 180;
-      const radius = Math.hypot(5, 7); // 保持原有的水平视距半径
+      const radius = Math.hypot(5, 7);
       dirLight.position.x = Math.sin(angle) * radius;
       dirLight.position.z = Math.cos(angle) * radius;
-      // 高度保持相对稳定 (例如 y = 10)
+      document.getElementById('val-rotation').innerText = val + '°';
     };
-
-    // --- 独立 Ambient Intensity 控制 ---
-    window.updateAmbientIntensity = function(val) {
+    window.updateAmbientIntensity = (val) => { 
       ambientLight.intensity = parseFloat(val);
+      document.getElementById('val-ambient').innerText = Math.round((val / 3.0) * 100) + '%';
     };
-
-    // --- 独立 Directional Intensity 控制 ---
-    window.updateDirIntensity = function(val) {
+    window.updateDirIntensity = (val) => { 
       dirLight.intensity = parseFloat(val);
+      document.getElementById('val-dir').innerText = Math.round((val / 5.0) * 100) + '%';
     };
-
-    // --- 环境光模糊度模拟调节 ---
-    window.updateEnvironmentBlur = function(val) {
+    window.updateEnvironmentBlur = (val) => {
       const blurFactor = parseFloat(val);
       meshesList.forEach(mesh => {
         if (mesh.material && 'roughness' in mesh.material) {
@@ -505,32 +787,62 @@
           mesh.material.needsUpdate = true;
         }
       });
+      document.getElementById('val-blur').innerText = Math.round(blurFactor * 100) + '%';
     };
 
-    // 背景颜色联动
-    const bgColorPicker = document.getElementById('bg-color-picker');
-    bgColorPicker.addEventListener('input', (e) => {
-      viewportContainer.style.backgroundColor = e.target.value;
-    });
-
-    // 旋转与重置控制
+    // 底部按钮交互
     const btnRotate = document.getElementById('btn-rotate');
     btnRotate.onclick = () => {
       isAutoRotate = !isAutoRotate;
       btnRotate.style.color = isAutoRotate ? '#A34828' : '#2C3E35';
     };
 
-    document.getElementById('btn-reset').onclick = () => {
+    // --- 统一的重置逻辑（点击底部 Reset 按钮或面板内 Reset 字样都会触发） ---
+    function handleResetAll() {
+      // 1. 旋转与视角重置
       isAutoRotate = false;
       btnRotate.style.color = '#2C3E35';
-      if (modelWrapper) {
-        modelWrapper.rotation.set(0, 0, 0);
-      }
+      if (modelWrapper) modelWrapper.rotation.set(0, 0, 0);
       camera.position.copy(initialCameraState.pos);
       controls.target.copy(initialCameraState.target);
       controls.update();
-    };
 
+      // 2. 右侧面板滑动条数值重置回默认值
+      document.getElementById('slider-intensity').value = 1.0;
+      updateLightIntensity(1.0);
+
+      document.getElementById('slider-rotation').value = 45;
+      updateLightRotation(45);
+
+      document.getElementById('slider-blur').value = 0.12;
+      updateEnvironmentBlur(0.12);
+
+      document.getElementById('slider-ambient').value = 1.5;
+      updateAmbientIntensity(1.5);
+
+      document.getElementById('slider-dir').value = 2.0;
+      updateDirIntensity(2.0);
+
+      // 3. 预设按钮状态重置（默认选中 Studio）
+      const presetButtons = document.querySelectorAll('.preset-btn');
+      presetButtons.forEach(b => {
+        b.classList.remove('active');
+        if (b.textContent.trim() === 'Studio') {
+          b.classList.add('active');
+        }
+      });
+      // 重新应用 Studio 默认光照
+      ambientLight.color.setHex(0xffffff);
+      ambientLight.intensity = 1.5;
+      dirLight.color.setHex(0xfff4e6);
+      dirLight.intensity = 2.0;
+      dirLight.position.set(5, 10, 7);
+    }
+
+    document.getElementById('btn-reset').onclick = handleResetAll;
+    document.getElementById('panel-reset-btn').onclick = handleResetAll;
+
+    // 全局欣赏：触发 3D 视窗全屏
     document.getElementById('btn-global').onclick = () => {
       if (!document.fullscreenElement) viewportContainer.requestFullscreen();
       else document.exitFullscreen();
